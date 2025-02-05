@@ -1,0 +1,237 @@
+﻿///$tab Main
+SET ThousandSep="'";
+SET DecimalSep='.';
+SET MoneyThousandSep="'";
+SET MoneyDecimalSep='.';
+SET MoneyFormat='Fr. #''##0.00;Fr.-#''##0.00';
+SET TimeFormat='hh:mm:ss';
+SET DateFormat='DD.MM.YYYY';
+SET TimestampFormat='DD.MM.YYYY hh:mm:ss[.fff]';
+SET MonthNames='Jan;Feb;Mrz;Apr;Mai;Jun;Jul;Aug;Sep;Okt;Nov;Dez';
+SET DayNames='Mo;Di;Mi;Do;Fr;Sa;So';
+
+///$tab Sub Scan Folder And Subfolder
+sub ScanFolder(Root)
+
+          for each FileExtension in 'qvd'//,'mp3','ape','flac','ogg'
+
+                    for each FoundFile in filelist( Root & '\*.' & FileExtension)
+
+                              FileList:
+                              
+                              Load
+
+                                        '$(FoundFile)'                     as [FilenameWithPath],
+
+                                        '$(FileExtension)'           as [Extension]
+
+                              Autogenerate(1);
+
+                    next FoundFile
+
+          next FileExtension
+
+          for each SubDirectory in dirlist( Root & '\*' )
+
+                    call ScanFolder(SubDirectory)
+
+          next SubDirectory
+
+end sub
+
+ 
+///$tab Sub Create Dummy Tables
+LET pModuleRoot='C:\Users\Steffen Weber\Documents\Qlik\Test_BI\';
+LET pSourceModule='Module_1';
+LET pTargetModule='Module_2';
+
+Sub CreateDummyTables(pModuleRoot,pSourceModule,pTargetModule)
+
+	Call ScanFolder('$(pModuleRoot)'&'\'&'$(pTargetModule)') ;
+	//Call ScanFolder('C:\Users\Steffen Weber\Documents\Qlik\Test_BI\Module_2') ;
+	
+	FileList_Target:
+	LOAD
+		Folder&'|'&Qvd as Folder|Qvd,
+		Folder,
+		Qvd
+		;
+	LOAD
+		FilenameWithPath,
+		subfield(FilenameWithPath,'\',-2) as Folder,
+		subfield(FilenameWithPath,'\',-1) as Qvd
+	Resident FileList;
+	
+	
+	DROP Table FileList;
+	
+	//Call ScanFolder('C:\Users\Steffen Weber\Documents\Qlik\Test_BI\Module_1') ;
+	Call ScanFolder('$(pModuleRoot)'&'\'&'$(pSourceModule)') ;
+	
+	MissingFileList:
+	NoConcatenate
+	LOAD
+		*
+		where not Exists(Folder|Qvd)
+		;
+	LOAD
+		FilenameWithPath,
+		Folder&'|'&Qvd as Folder|Qvd,
+		Folder,
+		Qvd
+		;
+	LOAD
+		FilenameWithPath,
+		subfield(FilenameWithPath,'\',-2) as Folder,
+		subfield(FilenameWithPath,'\',-1) as Qvd
+	Resident FileList;
+	
+	DROP Tables FileList,
+				FileList_Target;
+				
+	
+	
+	SET fTableExists = if(len(NoOfRows('$1'))>0,1,0);	
+	
+	
+	IF $(fTableExists(MissingFileList))=1 Then
+		
+	
+				
+		For i=0 to NoOfRows('MissingFileList')-1
+		
+			LET vSourceQvdPath=peek('FilenameWithPath',$(i),'MissingFileList');
+			TRACE $(vSourceQvdPath);
+			LET vTargetQvdPath=replace('$(vSourceQvdPath)','$(pSourceModule)','$(pTargetModule)');
+			TRACE $(vTargetQvdPath);
+			
+			Tmp:
+			LOAD
+			*
+			Where 1=0
+			;
+			First 1
+			LOAD * FROM $(vSourceQvdPath)(qvd);
+			
+			Store Tmp into $(vTargetQvdPath);
+				
+			DROP Table Tmp;
+			
+		Next i
+	
+	ENDIF
+	
+End Sub
+
+Call CreateDummyTables('C:\Users\Steffen Weber\Documents\Qlik\Test_BI\','Module_1',pTargetModule);
+
+exit script;
+///$tab Create Dummy Tables
+sub ScanFolder(Root)
+
+          for each FileExtension in 'qvd'//,'mp3','ape','flac','ogg'
+
+                    for each FoundFile in filelist( Root & '\*.' & FileExtension)
+
+                              FileList:
+                              
+                              Load
+
+                                        '$(FoundFile)'                     as [FilenameWithPath],
+
+                                        '$(FileExtension)'           as [Extension]
+
+                              Autogenerate(1);
+
+                    next FoundFile
+
+          next FileExtension
+
+          for each SubDirectory in dirlist( Root & '\*' )
+
+                    call ScanFolder(SubDirectory)
+
+          next SubDirectory
+
+end sub
+
+ 
+
+LET pModuleRoot='C:\Users\Steffen Weber\Documents\Qlik\Test_BI\';
+LET pSourceModule='Module_1';
+LET pTargetModule='Module_2';
+
+
+Call ScanFolder('$(pModuleRoot)'&'\'&'$(pTargetModule)') ;
+//Call ScanFolder('C:\Users\Steffen Weber\Documents\Qlik\Test_BI\Module_2') ;
+
+FileList_Target:
+LOAD
+	Folder&'|'&Qvd as Folder|Qvd,
+	Folder,
+	Qvd
+	;
+LOAD
+	FilenameWithPath,
+	subfield(FilenameWithPath,'\',-2) as Folder,
+	subfield(FilenameWithPath,'\',-1) as Qvd
+Resident FileList;
+
+
+DROP Table FileList;
+
+//Call ScanFolder('C:\Users\Steffen Weber\Documents\Qlik\Test_BI\Module_1') ;
+Call ScanFolder('$(pModuleRoot)'&'\'&'$(pSourceModule)') ;
+
+MissingFileList:
+NoConcatenate
+LOAD
+	*
+	where not Exists(Folder|Qvd)
+	;
+LOAD
+	FilenameWithPath,
+	Folder&'|'&Qvd as Folder|Qvd,
+	Folder,
+	Qvd
+	;
+LOAD
+	FilenameWithPath,
+	subfield(FilenameWithPath,'\',-2) as Folder,
+	subfield(FilenameWithPath,'\',-1) as Qvd
+Resident FileList;
+
+DROP Tables FileList,
+			FileList_Target;
+			
+
+
+SET fTableExists = if(len(NoOfRows('$1'))>0,1,0);	
+
+
+IF $(fTableExists(MissingFileList))=1 Then
+	
+
+			
+	For i=0 to NoOfRows('MissingFileList')-1
+	
+		LET vSourceQvdPath=peek('FilenameWithPath',$(i),'MissingFileList');
+		TRACE $(vSourceQvdPath);
+		LET vTargetQvdPath=replace('$(vSourceQvdPath)','$(pSourceModule)','$(pTargetModule)');
+		TRACE $(vTargetQvdPath);
+		
+		Tmp:
+		LOAD
+		*
+		Where 1=0
+		;
+		First 1
+		LOAD * FROM $(vSourceQvdPath)(qvd);
+		
+		Store Tmp into $(vTargetQvdPath);
+			
+		DROP Table Tmp;
+		
+	Next i
+
+ENDIF
