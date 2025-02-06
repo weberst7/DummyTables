@@ -235,3 +235,5 @@ IF $(fTableExists(MissingFileList))=1 Then
 	Next i
 
 ENDIF
+
+// new comment: bla bla
